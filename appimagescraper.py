@@ -2,31 +2,34 @@ import json
 import requests
 import datetime
 import dateutil.parser
-import collections
 
-def getSettings(file_name):
-    settings = {}
+def getSettings(file_name):    
     try:
-        with open(file_name) as json_file:  
-            data = json.load(json_file)
-            apiKey = data["ApiKey"]
-            if not apiKey:
-                raise Exception() 
-            postUrl = data["PostUrl"]
-            if not postUrl:
-                raise Exception()
-            settings["ApiKey"] = apiKey            
-            settings["PostUrl"] = postUrl               
-    except:
-        print("Could not open ApiKey from file={}".format(file_name))
-    return settings
+        try:
+            with open(file_name) as json_file:
+                settings = {}
+                data = json.load(json_file)
+                apiKey = data["ApiKey"]
+                if not apiKey:
+                    raise ValueError("Could not read ApiKey from settings.")
 
+                postUrl = data["PostUrl"]
+                if not postUrl:
+                    raise ValueError("Could not read PostUrl from settings.")
+
+                settings["ApiKey"] = apiKey            
+                settings["PostUrl"] = postUrl   
+                return settings
+        except:
+            raise ValueError("Could not open file={}".format(file_name))     
+    except ValueError as e:
+        print(e)
 
 def getIconAsString(icons):
     if icons and len(icons) > 0:
         return icons[0]
     else:
-        return None
+        return ''
 
 def getDownloadLink(data):
     if (data):
@@ -36,7 +39,7 @@ def getDownloadLink(data):
                 download_link = item["url"]
                 return download_link
     else:
-        return None
+        return ''
 
 def getGithubReleaseApiLink(link):
     if link:
@@ -66,41 +69,64 @@ def postData(url, content):
     print("Posting data to url={}".format(url))
     requests.post(url, json=content)
 
+def getAppImageFeed(url):
+    try:
+        r = requests.get(url)
+        return r.json()
+    except:
+        print("Failed to retrieve AppImage feed.")
+
 def scrap():
-    r = requests.get('https://appimage.github.io/feed.json')
-    j = r.json()
-    items = j["items"]
+    feedJson = getAppImageFeed('https://appimage.github.io/feed.json')
+    if feedJson is None:
+        return
+
+    items = feedJson["items"]
     count = 0
-    payload = {}
+
     settings = getSettings("settings.json")
+    if settings is None:
+        return
+
     apiKey = settings["ApiKey"]
-    postUrl = settings["PostUrl"]
     if not apiKey:
         return
+
+    postUrl = settings["PostUrl"]
     if not postUrl:
         return
+
+    payload = {}
     payload["ApiKey"] = apiKey
     Apps = []
     for item in items:
         if count > 1:
             break
         count += 1
+
         name = item["name"]
-        type = 1
+
+        if not name:
+            continue
+
         icon = getIconAsString(item["icons"])
+
         license = item["license"]
         download_link = getDownloadLink(item["links"])
+        if not download_link:
+            print("{} does not have a download link".format(name))
+            continue
+
         download_api_link = getGithubReleaseApiLink(download_link)
         detailsDict = getExtraDetailsFromGithubApi(download_api_link)
+
         print("name={}".format(name))
-        print("\ttype={}".format(type))
+        print("\ttype={}".format(1))
         print("\ticon={}".format(icon))
         print("\tlicense={}".format(license))
         print("\tdownload={}".format(download_link))
         print("\tdownload_api={}".format(download_api_link))
-        created_at = None
-        published_at = None
-        tag_name = "0.0.0"
+
         if detailsDict:
             if 'created_at' in detailsDict:
                 created_at = detailsDict['created_at']
@@ -111,7 +137,13 @@ def scrap():
             if 'tag_name' in detailsDict:
                 tag_name = detailsDict['tag_name']
                 print("\tversion={}".format(tag_name))
-        app = collections.OrderedDict({"id": 0, "name":name, "type":type, "dateAdded":created_at, "lastUpdated":published_at, "src":download_link, "icon":icon, "currentVersion":tag_name})
+        else:
+            created_at_time = datetime.datetime.now()
+            created_at = created_at_time.strftime("%Y-%m-%dT%H:%M:%S")
+            published_at_time = datetime.datetime.now()
+            published_at = published_at_time.strftime("%Y-%m-%dT%H:%M:%S")
+
+        app = {"id": 0, "name":name, "type":1, "dateAdded":created_at, "lastUpdated":published_at, "src":download_link, "icon":icon, "currentVersion":tag_name}
         Apps.append(app)
     payload["Apps"] = Apps
     postData(postUrl, payload)
