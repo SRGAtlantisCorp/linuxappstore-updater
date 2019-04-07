@@ -2,24 +2,14 @@ import json
 import requests
 import datetime
 import dateutil.parser
+import github
 
 def getSettings(file_name):    
     try:
         try:
             with open(file_name) as json_file:
-                settings = {}
                 data = json.load(json_file)
-                apiKey = data["ApiKey"]
-                if not apiKey:
-                    raise ValueError("Could not read ApiKey from settings.")
-
-                postUrl = data["PostUrl"]
-                if not postUrl:
-                    raise ValueError("Could not read PostUrl from settings.")
-
-                settings["ApiKey"] = apiKey            
-                settings["PostUrl"] = postUrl   
-                return settings
+                return data
         except:
             raise ValueError("Could not open file={}".format(file_name))     
     except ValueError as e:
@@ -41,28 +31,27 @@ def getDownloadLink(data):
     else:
         return ''
 
-def getGithubReleaseApiLink(link):
-    if link:
-        return str(link).replace("github.com/", "api.github.com/repos/")
-    else:
-        return None
+def formatGithubUrl(url):
+    find = "github.com/"
+    pos = url.find(find)
+    if pos == -1:
+        return
+    substring = url[pos + len(find):]
+    if substring.find("/") == -1:
+        return
+    split = substring.split("/")
+    if len(split) >= 2:
+        return "{}/{}".format(split[0], split[1])
 
-def getExtraDetailsFromGithubApi(api_url):
+def getExtraDetailsFromGithubApi(g, api_url):
     if api_url:
-        r = requests.get(api_url)
-        j = r.json()
-        for item in j:
-            prerelease = item["prerelease"]
-            if not prerelease:
-                tag_name = item["tag_name"]
-                created_at = item["created_at"]
-                if created_at:                    
-                    created_at_time = datetime.datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ") 
-                    created_at = created_at_time.strftime("%Y-%m-%dT%H:%M:%S")                   
-                published_at = item["published_at"]
-                if published_at:
-                    published_at_time = datetime.datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ")
-                    published_at = published_at_time.strftime("%Y-%m-%dT%H:%M:%S")                
+        repo = g.get_repo("AkashaProject/Community")
+        releases = repo.get_releases()
+        for release in releases:
+            if not release.prerelease:
+                tag_name = release.tag_name
+                created_at = release.created_at.strftime("%Y-%m-%dT%H:%M:%S") 
+                published_at = release.published_at.strftime("%Y-%m-%dT%H:%M:%S")
                 return {'created_at':created_at, 'published_at':published_at, 'tag_name':tag_name }
 
 def postData(url, content):
@@ -82,7 +71,6 @@ def scrap():
         return
 
     items = feedJson["items"]
-    count = 0
 
     settings = getSettings("settings.json")
     if settings is None:
@@ -90,20 +78,27 @@ def scrap():
 
     apiKey = settings["ApiKey"]
     if not apiKey:
+        print("ApiKey does nto exist.")
         return
 
     postUrl = settings["PostUrl"]
     if not postUrl:
+        print("PostUrl does not exist.")
+        return
+
+    githubUser = settings["GithubUser"]
+    githubPass = settings["GithubPass"]
+    if not githubUser or not githubPass:
+        print("Github user or pass does not exist.")
         return
 
     payload = {}
     payload["ApiKey"] = apiKey
     Apps = []
-    for item in items:
-        if count > 1:
-            break
-        count += 1
 
+    g = github.Github(githubUser, githubPass)  
+
+    for item in items:
         name = item["name"]
 
         if not name:
@@ -117,8 +112,8 @@ def scrap():
             print("{} does not have a download link".format(name))
             continue
 
-        download_api_link = getGithubReleaseApiLink(download_link)
-        detailsDict = getExtraDetailsFromGithubApi(download_api_link)
+        download_api_link = formatGithubUrl(download_link)        
+        detailsDict = getExtraDetailsFromGithubApi(g, download_api_link)
 
         print("name={}".format(name))
         print("\ttype={}".format(1))
@@ -142,7 +137,8 @@ def scrap():
             created_at = created_at_time.strftime("%Y-%m-%dT%H:%M:%S")
             published_at_time = datetime.datetime.now()
             published_at = published_at_time.strftime("%Y-%m-%dT%H:%M:%S")
-
+            
+        print(g.rate_limiting)
         app = {"id": 0, "name":name, "type":1, "dateAdded":created_at, "lastUpdated":published_at, "src":download_link, "icon":icon, "currentVersion":tag_name}
         Apps.append(app)
     payload["Apps"] = Apps
