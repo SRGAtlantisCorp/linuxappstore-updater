@@ -45,14 +45,17 @@ def formatGithubUrl(url):
 
 def getExtraDetailsFromGithubApi(g, api_url):
     if api_url:
-        repo = g.get_repo("AkashaProject/Community")
-        releases = repo.get_releases()
-        for release in releases:
-            if not release.prerelease:
-                tag_name = release.tag_name
-                created_at = release.created_at.strftime("%Y-%m-%dT%H:%M:%S") 
-                published_at = release.published_at.strftime("%Y-%m-%dT%H:%M:%S")
-                return {'created_at':created_at, 'published_at':published_at, 'tag_name':tag_name }
+        try:
+            repo = g.get_repo(api_url)
+            releases = repo.get_releases()
+            for release in releases:
+                if not release.prerelease:
+                    tag_name = release.tag_name
+                    created_at = release.created_at.strftime("%Y-%m-%dT%H:%M:%S") 
+                    published_at = release.published_at.strftime("%Y-%m-%dT%H:%M:%S")
+                    return {'created_at':created_at, 'published_at':published_at, 'tag_name':tag_name }
+        except:
+            print("Github api url not found={}".format(api_url))     
 
 def postData(url, content):
     print("Posting data to url={}".format(url))
@@ -64,6 +67,16 @@ def getAppImageFeed(url):
         return r.json()
     except:
         print("Failed to retrieve AppImage feed.")
+
+def getIdentifier(item, name):
+    authors = item["authors"]
+        
+    if authors and len(authors) > 0:
+        author = authors[0]
+        authorName = author["name"]
+        if authorName:
+            return name + ":" + authorName
+    return name
 
 def scrap():
     feedJson = getAppImageFeed('https://appimage.github.io/feed.json')
@@ -78,12 +91,12 @@ def scrap():
 
     apiKey = settings["ApiKey"]
     if not apiKey:
-        print("ApiKey does nto exist.")
+        print("ApiKey does not exist.")
         return
 
-    postUrl = settings["PostUrl"]
+    postUrl = settings["AppImagePostUrl"]
     if not postUrl:
-        print("PostUrl does not exist.")
+        print("AppImagePostUrl does not exist.")
         return
 
     githubUser = settings["GithubUser"]
@@ -99,9 +112,16 @@ def scrap():
     g = github.Github(githubUser, githubPass)  
 
     for item in items:
+
         name = item["name"]
 
         if not name:
+            continue
+
+        identifier = getIdentifier(item, name)
+
+        if not identifier:
+            print("Could determine identifier for name={}".format(name))
             continue
 
         icon = getIconAsString(item["icons"])
@@ -115,7 +135,7 @@ def scrap():
         download_api_link = formatGithubUrl(download_link)        
         detailsDict = getExtraDetailsFromGithubApi(g, download_api_link)
 
-        print("name={}".format(name))
+        print("name={} identifier={}".format(name, identifier))
         print("\ttype={}".format(1))
         print("\ticon={}".format(icon))
         print("\tlicense={}".format(license))
@@ -139,7 +159,8 @@ def scrap():
             published_at = published_at_time.strftime("%Y-%m-%dT%H:%M:%S")
             
         print(g.rate_limiting)
-        app = {"id": 0, "name":name, "type":1, "dateAdded":created_at, "lastUpdated":published_at, "src":download_link, "icon":icon, "currentVersion":tag_name}
+        app = {"id": 0, "name":name, "type":1, "dateAdded":created_at, "lastUpdated":published_at, "src":download_link, "icon":icon, "currentVersion":tag_name,
+         "identifier":identifier}
         Apps.append(app)
     payload["Apps"] = Apps
     postData(postUrl, payload)
