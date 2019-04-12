@@ -2,7 +2,6 @@ import json
 import requests
 import datetime
 import dateutil.parser
-import github
 
 def getSettings(file_name):    
     try:
