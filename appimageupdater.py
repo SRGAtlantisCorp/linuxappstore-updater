@@ -94,7 +94,7 @@ def scrap():
         print("ApiKey does not exist.")
         return
 
-    postUrl = settings["AppImagePostUrl"]
+    postUrl = settings["PostUrl"]
     if not postUrl:
         print("AppImagePostUrl does not exist.")
         return
