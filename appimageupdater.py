@@ -141,7 +141,7 @@ def scrap():
         print("\ttype={}".format(1))
         print("\ticon={}".format(icon))
         print("\tlicense={}".format(license))
-        print("\src={}".format(src))
+        print("\tsrc={}".format(src))
         print("\tdownload_api={}".format(download_api_link))
 
         if detailsDict:
