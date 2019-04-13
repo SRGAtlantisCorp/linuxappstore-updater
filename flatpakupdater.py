@@ -58,7 +58,7 @@ def scrap():
         if not identifier:
             print("App={} missing identifier".format(name))
             continue
-        src = "https://flathub.org/repo/appstream/" + identifier + ".flatpakref"
+        src = "https://flathub.org/apps/details/" + identifier
         date_added = item["inStoreSinceDate"]
         created_at_datetime = dateutil.parser.parse(date_added)
         created_at = created_at_datetime.strftime("%Y-%m-%dT%H:%M:%S")
