@@ -135,11 +135,13 @@ def scrap():
         download_api_link = formatGithubUrl(download_link)        
         detailsDict = getExtraDetailsFromGithubApi(g, download_api_link)
 
+        src = "https://appimage.github.io/" + name
+
         print("name={} identifier={}".format(name, identifier))
         print("\ttype={}".format(1))
         print("\ticon={}".format(icon))
         print("\tlicense={}".format(license))
-        print("\tdownload={}".format(download_link))
+        print("\src={}".format(src))
         print("\tdownload_api={}".format(download_api_link))
 
         if detailsDict:
@@ -159,7 +161,7 @@ def scrap():
             published_at = published_at_time.strftime("%Y-%m-%dT%H:%M:%S")
             
         print(g.rate_limiting)
-        app = {"id": 0, "name":name, "type":1, "dateAdded":created_at, "lastUpdated":published_at, "src":download_link, "icon":icon, "currentVersion":tag_name,
+        app = {"id": 0, "name":name, "type":1, "dateAdded":created_at, "lastUpdated":published_at, "src":src, "icon":icon, "currentVersion":tag_name,
          "identifier":identifier}
         Apps.append(app)
     payload["Apps"] = Apps
