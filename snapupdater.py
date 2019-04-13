@@ -19,7 +19,7 @@ def getFeed(url):
         r = requests.get(url)
         return r.json()
     except:
-        print("Failed to retrieve feed.")
+        print("Could not read feed api={}".format(url))
 
 def postData(url, content):
     print("Posting data to url={}".format(url))
@@ -62,20 +62,49 @@ def scrap():
 
     for snap in snaps:
         title = snap["title"]
+        if not title:
+            print("Title does not exist.")
+            continue
         current_version = snap["version"]
+        if not current_version:
+            current_version = ''
+        
         icon = snap["icon_url"]
-        src = snap["download_url"]
+        if not icon:
+            icon = ''
+
+        package_name = snap["package_name"]
+        if not package_name:
+            print("Snap={} does not have a package name.".format(title))
+            continue
+
+        src = "https://snapcraft.io/" + package_name
+
         identifier = snap["snap_id"]
+        if not identifier:
+            print("Snap={} does not have an identifier".format(identifier))
+            continue
+
         date_published = snap["date_published"]
-        date_added_datetime = dateutil.parser.parse(date_published)
+        if not date_published:
+            date_added_datetime = datetime.datetime.now()
+        else:
+            date_added_datetime = dateutil.parser.parse(date_published)
+
         date_added_formatted = date_added_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+
         last_updated = snap["last_updated"]
-        last_updated_datetime = dateutil.parser.parse(last_updated)
+        if not last_updated:
+            last_updated_datetime = datetime.datetime.now()
+        else:
+            last_updated_datetime = dateutil.parser.parse(last_updated)
+
         last_updated_formatted = last_updated_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+
         print("name: {} identifier={}".format(title, identifier))
         print("\ttype: 3")
         print("\ticon: {}".format(icon))
-        print("\tdownload: {}".format(src))
+        print("\tsrc: {}".format(src))
         print("\tcurrent_version: {}".format(current_version))
         print("\tdate_added: {}".format(date_added_formatted))
         print("\tlast_updated: {}".format(last_updated_formatted))
